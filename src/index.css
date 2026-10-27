@@ -1,0 +1,23 @@
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: #080d1b;
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  color: #ffffff;
+  background: rgba(122, 156, 255, 0.4);
+}
