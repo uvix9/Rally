@@ -57,12 +57,6 @@ const initialPosts = [
   },
 ];
 
-const initialUser = {
-  name: "Alex Morgan",
-  handle: "alexbuilds",
-  initials: "AM",
-};
-
 function Icon({ name }) {
   const paths = {
     home: <><path d="m3 10 9-7 9 7" /><path d="M5 9v11h14V9M9 20v-7h6v7" /></>,
@@ -108,7 +102,173 @@ function Avatar({ name = "User", size = "normal", color = "blue" }) {
   );
 }
 
+
+function AuthScreen({ onLogin, accounts, setAccounts }) {
+  const [mode, setMode] = useState("signup");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+
+    const cleanUsername = username.trim();
+    const normalized = cleanUsername.toLowerCase();
+
+    if (cleanUsername.length < 3) {
+      setError("Username must be at least 3 characters.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    // Arunika is the protected admin account and cannot be created through signup.
+    if (mode === "signup") {
+      if (normalized === "arunika") {
+        setError("This username is reserved. Please choose another one.");
+        return;
+      }
+
+      // Keep Shanaya reserved; Paheli is allowed to create a regular account.
+      if (normalized === "shanaya") {
+        setError("Username is already taken. Try another one.");
+        return;
+      }
+
+      const exists = accounts.some(
+        (account) => account.username.toLowerCase() === normalized
+      );
+
+      if (exists) {
+        setError("Username is already taken. Try another one.");
+        return;
+      }
+
+      setAccounts((previous) => [
+        ...previous,
+        { username: cleanUsername, password, role: "user" }
+      ]);
+
+      onLogin(cleanUsername, "user");
+    } else {
+      // Admin credentials are checked separately and are never stored in signup accounts.
+      if (normalized === "arunika") {
+        if (password === "welovechickenbiriyani") {
+          onLogin("Arunika", "admin");
+        } else {
+          setError("Incorrect admin password.");
+        }
+        return;
+      }
+
+      const account = accounts.find(
+        (item) =>
+          item.username.toLowerCase() === normalized &&
+          item.password === password
+      );
+
+      if (!account) {
+        setError("Incorrect username or password.");
+        return;
+      }
+
+      onLogin(account.username, account.role || "user");
+    }
+  }
+
+  return (
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="auth-logo">rally<span>.</span></div>
+
+        <div className="auth-eyebrow">YOUR PEOPLE. YOUR PLANET.</div>
+
+        <h1>
+          {mode === "signup" ? "Find your people." : "Welcome back."}
+        </h1>
+
+        <p className="auth-description">
+          {mode === "signup"
+            ? "Create your space. Join the conversation."
+            : "Your communities are waiting for you."}
+        </p>
+
+        <div className="auth-tabs">
+          <button
+            className={mode === "login" ? "active" : ""}
+            onClick={() => {
+              setMode("login");
+              setError("");
+            }}
+            type="button"
+          >
+            Log in
+          </button>
+
+          <button
+            className={mode === "signup" ? "active" : ""}
+            onClick={() => {
+              setMode("signup");
+              setError("");
+            }}
+            type="button"
+          >
+            Sign up
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <label>Username</label>
+          <input
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            placeholder="Choose a username"
+            required
+          />
+
+          <label>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Enter your password"
+            required
+          />
+
+          {error && <div className="auth-error">{error}</div>}
+
+          <button className="auth-submit" type="submit">
+            {mode === "signup" ? "Create account" : "Log in"}
+          </button>
+        </form>
+
+        <p className="auth-switch">
+          {mode === "signup"
+            ? "Already have an account?"
+            : "New to Rally?"}
+          <button
+            type="button"
+            onClick={() => {
+              setMode(mode === "signup" ? "login" : "signup");
+              setError("");
+            }}
+          >
+            {mode === "signup" ? "Log in" : "Sign up"}
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
+  const [currentUser, setCurrentUser] = useState("");
+  const [currentRole, setCurrentRole] = useState("user");
+  const [accounts, setAccounts] = useState([]);
   const [posts, setPosts] = useState(initialPosts);
   const [communities, setCommunities] = useState(initialCommunities);
   const [joined, setJoined] = useState(["technology", "programming"]);
@@ -124,6 +284,13 @@ function App() {
   const [commentText, setCommentText] = useState("");
   const [notice, setNotice] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
+
+  // The logged-in user's details are used throughout the existing homepage.
+  const initialUser = {
+    name: currentUser,
+    handle: currentUser,
+    initials: currentUser.slice(0, 2).toUpperCase(),
+  };
 
   const currentPost = posts.find((post) => post.id === showComments);
 
@@ -253,6 +420,20 @@ function App() {
     setMobileMenu(false);
   }
 
+  // Show authentication before rendering the existing Rally homepage.
+  if (!currentUser) {
+    return (
+      <AuthScreen
+        onLogin={(username, role) => {
+          setCurrentUser(username);
+          setCurrentRole(role || "user");
+        }}
+        accounts={accounts}
+        setAccounts={setAccounts}
+      />
+    );
+  }
+
   return (
     <div className="app-shell">
       <div className="ambient ambient-one" />
@@ -291,8 +472,21 @@ function App() {
             <Icon name="plus" />
             <span>Create post</span>
           </button>
-          <button className="profile-button" onClick={() => showNotice(`Signed in as @${initialUser.handle}`)}>
+          <button
+            className="profile-button"
+            onClick={() => {
+              setCurrentUser("");
+              setCurrentRole("user");
+              setActiveNav("Home");
+              setActiveCommunity("");
+              setSearch("");
+              showNotice("You've been logged out");
+            }}
+            title={currentRole === "admin" ? "Admin account — click to log out" : "Log out"}
+            aria-label={`${currentRole === "admin" ? "Admin account. " : ""}Log out ${initialUser.handle}`}
+          >
             <Avatar name={initialUser.initials} />
+            {currentRole === "admin" && <span className="admin-label">ADMIN</span>}
             <span className="profile-chevron">⌄</span>
           </button>
           <button className="icon-button mobile-menu-button" onClick={() => setMobileMenu(!mobileMenu)} aria-label="Toggle menu">☰</button>
@@ -422,7 +616,7 @@ function App() {
 
             <button className="quick-compose glass-panel" onClick={() => setShowComposer(true)}>
               <Avatar name={initialUser.initials} />
-              <span>What's on your mind, Alex?</span>
+              <span>What's on your mind, {initialUser.name}?</span>
               <span className="compose-icon"><Icon name="plus" /></span>
             </button>
 
