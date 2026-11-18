@@ -19,6 +19,9 @@ app.use(
 );
 
 app.use(express.json());
+const authRoutes = require("./routes/authRoutes");
+
+app.use("/api/auth", authRoutes);
 
 // Backend health check
 app.get("/api/health", (req, res) => {
