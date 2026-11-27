@@ -12,12 +12,12 @@ const pool = require("./config/db");
 // Import routes
 const authRoutes = require("./routes/authRoutes");
 const postRoutes = require("./routes/postRoutes");
+const commentRoutes = require("./routes/commentRoutes");
 
 const app = express();
 
 // ================= MIDDLEWARES =================
 
-// CORS configuration
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -25,17 +25,16 @@ app.use(
   })
 );
 
-// Parse incoming JSON requests
 app.use(express.json());
 
 // ================= API ROUTES =================
 
 app.use("/api/auth", authRoutes);
 app.use("/api/posts", postRoutes);
+app.use("/api/comments", commentRoutes);
 
 // ================= HEALTH CHECK =================
 
-// Backend health check
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     success: true,
@@ -43,7 +42,6 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Database health check
 app.get("/api/health/db", async (req, res) => {
   try {
     const result = await pool.query(
@@ -73,4 +71,5 @@ const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Rally server running on port ${PORT}`);
 });
+
 
