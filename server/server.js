@@ -15,6 +15,7 @@ const postRoutes = require("./routes/postRoutes");
 const commentRoutes = require("./routes/commentRoutes");
 const voteRoutes = require("./routes/voteRoutes");
 const savedPostRoutes = require("./routes/savedPostRoutes");
+const communityRoutes = require("./routes/communityRoutes");
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/votes", voteRoutes);
 app.use("/api/saved-posts", savedPostRoutes);
+app.use("/api/communities", communityRoutes);
 
 // ================= HEALTH CHECK =================
 
