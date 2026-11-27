@@ -32,11 +32,13 @@ const authMiddleware = async (req, res, next) => {
     next();
 
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: "Invalid or expired token",
-    });
-  }
+  console.error("AUTH MIDDLEWARE ERROR:", error.message);
+
+  return res.status(401).json({
+    success: false,
+    message: "Invalid or expired token",
+  });
+}
 };
 
 module.exports = authMiddleware;

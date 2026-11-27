@@ -16,6 +16,8 @@ const commentRoutes = require("./routes/commentRoutes");
 const voteRoutes = require("./routes/voteRoutes");
 const savedPostRoutes = require("./routes/savedPostRoutes");
 const communityRoutes = require("./routes/communityRoutes");
+const followRoutes = require("./routes/followRoutes");
+const messageRoutes = require("./routes/messageRoutes");
 
 const app = express();
 
@@ -23,7 +25,10 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "http://10.234.78.112:5173",
+    ],
     credentials: true,
   })
 );
@@ -38,6 +43,8 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/votes", voteRoutes);
 app.use("/api/saved-posts", savedPostRoutes);
 app.use("/api/communities", communityRoutes);
+app.use("/api/follows", followRoutes);
+app.use("/api/messages", messageRoutes);
 
 // ================= HEALTH CHECK =================
 
@@ -74,7 +81,7 @@ app.get("/api/health/db", async (req, res) => {
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Rally server running on port ${PORT}`);
 });
 
