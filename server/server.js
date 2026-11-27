@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -8,9 +9,15 @@ require("dotenv").config({
 
 const pool = require("./config/db");
 
+// Import routes
+const authRoutes = require("./routes/authRoutes");
+const postRoutes = require("./routes/postRoutes");
+
 const app = express();
 
-// Middlewares
+// ================= MIDDLEWARES =================
+
+// CORS configuration
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -18,10 +25,15 @@ app.use(
   })
 );
 
+// Parse incoming JSON requests
 app.use(express.json());
-const authRoutes = require("./routes/authRoutes");
+
+// ================= API ROUTES =================
 
 app.use("/api/auth", authRoutes);
+app.use("/api/posts", postRoutes);
+
+// ================= HEALTH CHECK =================
 
 // Backend health check
 app.get("/api/health", (req, res) => {
@@ -54,9 +66,11 @@ app.get("/api/health/db", async (req, res) => {
   }
 });
 
-// Start server
+// ================= START SERVER =================
+
 const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
   console.log(`Rally server running on port ${PORT}`);
 });
+
