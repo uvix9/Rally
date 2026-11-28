@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from "react";
 import "./App.css";
+import API_BASE_URL from "./api";
 
 const initialCommunities = [
   { id: "technology", name: "technology", members: "2.4m", icon: "⌘", color: "blue" },
@@ -101,82 +102,82 @@ function Avatar({ name = "User", size = "normal", color = "blue" }) {
     </div>
   );
 }
-
-
-function AuthScreen({ onLogin, accounts, setAccounts }) {
+function AuthScreen({ onLogin }) {
   const [mode, setMode] = useState("signup");
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     setError("");
 
-    const cleanUsername = username.trim();
-    const normalized = cleanUsername.toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
 
-    if (cleanUsername.length < 3) {
-      setError("Username must be at least 3 characters.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-
-    // Arunika is the protected admin account and cannot be created through signup.
     if (mode === "signup") {
-      if (normalized === "arunika") {
-        setError("This username is reserved. Please choose another one.");
+      if (username.trim().length < 3) {
+        setError("Username must be at least 3 characters.");
         return;
       }
 
-      // Keep Shanaya reserved; Paheli is allowed to create a regular account.
-      if (normalized === "shanaya") {
-        setError("Username is already taken. Try another one.");
+      if (displayName.trim().length < 2) {
+        setError("Please enter your display name.");
         return;
       }
 
-      const exists = accounts.some(
-        (account) => account.username.toLowerCase() === normalized
-      );
-
-      if (exists) {
-        setError("Username is already taken. Try another one.");
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters.");
         return;
       }
+    }
 
-      setAccounts((previous) => [
-        ...previous,
-        { username: cleanUsername, password, role: "user" }
-      ]);
+    setLoading(true);
 
-      onLogin(cleanUsername, "user");
-    } else {
-      // Admin credentials are checked separately and are never stored in signup accounts.
-      if (normalized === "arunika") {
-        if (password === "welovechickenbiriyani") {
-          onLogin("Arunika", "admin");
-        } else {
-          setError("Incorrect admin password.");
-        }
-        return;
+    try {
+      const endpoint =
+        mode === "signup" ? "/auth/signup" : "/auth/login";
+
+      const body =
+        mode === "signup"
+          ? {
+              username: username.trim(),
+              displayName: displayName.trim(),
+              email: cleanEmail,
+              password,
+            }
+          : {
+              email: cleanEmail,
+              password,
+            };
+
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Something went wrong.");
       }
 
-      const account = accounts.find(
-        (item) =>
-          item.username.toLowerCase() === normalized &&
-          item.password === password
-      );
-
-      if (!account) {
-        setError("Incorrect username or password.");
-        return;
+      if (mode === "signup") {
+        setMode("login");
+        setError("Account created successfully! Please log in.");
+        setPassword("");
+      } else {
+        onLogin(data.user, data.token);
       }
-
-      onLogin(account.username, account.role || "user");
+    } catch (err) {
+      setError(err.message || "Unable to connect to the server.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -222,11 +223,34 @@ function AuthScreen({ onLogin, accounts, setAccounts }) {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <label>Username</label>
+        
+          {mode === "signup" && (
+            <>
+              <label>Display Name</label>
+              <input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                placeholder="Enter your name"
+                required
+              />
+
+              <label>Username</label>
+              <input
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="Choose a username"
+                required
+              />
+            </>
+          )}
+
+          <label>Email</label>
           <input
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            placeholder="Choose a username"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="Enter your email"
+            
             required
           />
 
@@ -241,8 +265,14 @@ function AuthScreen({ onLogin, accounts, setAccounts }) {
 
           {error && <div className="auth-error">{error}</div>}
 
-          <button className="auth-submit" type="submit">
-            {mode === "signup" ? "Create account" : "Log in"}
+
+          <button className="auth-submit" type="submit" disabled={loading}>
+            {loading
+              ? "Please wait..."
+              : mode === "signup"
+                ? "Create account"
+                : "Log in"}
+
           </button>
         </form>
 
@@ -268,7 +298,8 @@ function AuthScreen({ onLogin, accounts, setAccounts }) {
 function App() {
   const [currentUser, setCurrentUser] = useState("");
   const [currentRole, setCurrentRole] = useState("user");
-  const [accounts, setAccounts] = useState([]);
+  const [authToken, setAuthToken] = useState("");
+
   const [posts, setPosts] = useState(initialPosts);
   const [communities, setCommunities] = useState(initialCommunities);
   const [joined, setJoined] = useState(["technology", "programming"]);
@@ -284,6 +315,8 @@ function App() {
   const [commentText, setCommentText] = useState("");
   const [notice, setNotice] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   // The logged-in user's details are used throughout the existing homepage.
   const initialUser = {
@@ -422,17 +455,17 @@ function App() {
 
   // Show authentication before rendering the existing Rally homepage.
   if (!currentUser) {
-    return (
-      <AuthScreen
-        onLogin={(username, role) => {
-          setCurrentUser(username);
-          setCurrentRole(role || "user");
-        }}
-        accounts={accounts}
-        setAccounts={setAccounts}
-      />
-    );
-  }
+  
+  return (
+    <AuthScreen
+      onLogin={(user, token) => {
+        setCurrentUser(user.username);
+        setCurrentRole(user.role || "user");
+        setAuthToken(token);
+      }}
+    />
+  );
+}
 
   return (
     <div className="app-shell">
@@ -464,33 +497,87 @@ function App() {
         </div>
 
         <div className="top-actions">
-          <button className="icon-button notification-button" aria-label="Notifications" onClick={() => showNotice("You're all caught up!")}>
+          <button
+            className="icon-button notification-button"
+            aria-label="Notifications"
+            onClick={() => showNotice("You're all caught up!")}
+          >
             <Icon name="bell" />
             <span className="notification-dot" />
           </button>
-          <button className="create-button" onClick={() => setShowComposer(true)}>
+
+          <button
+            className="create-button"
+            onClick={() => setShowComposer(true)}
+          >
             <Icon name="plus" />
             <span>Create post</span>
           </button>
+
+          <div className="profile-menu-wrapper">
+            <button
+              className="profile-button"
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              aria-label="Open profile menu"
+            >
+              <Avatar name={initialUser.initials} />
+              {currentRole === "admin" && (
+                <span className="admin-label">ADMIN</span>
+              )}
+              <span className="profile-chevron">⌄</span>
+            </button>
+
+            {showProfileMenu && (
+              <div className="profile-dropdown">
+                <button
+                  onClick={() => {
+                    setShowProfile(true);
+                    setShowProfileMenu(false);
+                  }}
+                >
+                  <Icon name="message" />
+                  View Profile
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      await fetch(`${API_BASE_URL}/auth/logout`, {
+                        method: "POST",
+                        headers: {
+                          Authorization: `Bearer ${authToken}`,
+                        },
+                      });
+                    } catch (error) {
+                      console.error("Logout error:", error);
+                    } finally {
+                      setCurrentUser("");
+                      setCurrentRole("user");
+                      setAuthToken("");
+                      setActiveNav("Home");
+                      setActiveCommunity("");
+                      setSearch("");
+                      setShowProfileMenu(false);
+                    }
+                  }}
+                >
+                  <Icon name="close" />
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
-            className="profile-button"
-            onClick={() => {
-              setCurrentUser("");
-              setCurrentRole("user");
-              setActiveNav("Home");
-              setActiveCommunity("");
-              setSearch("");
-              showNotice("You've been logged out");
-            }}
-            title={currentRole === "admin" ? "Admin account — click to log out" : "Log out"}
-            aria-label={`${currentRole === "admin" ? "Admin account. " : ""}Log out ${initialUser.handle}`}
+            className="icon-button mobile-menu-button"
+            onClick={() => setMobileMenu(!mobileMenu)}
+            aria-label="Toggle menu"
           >
-            <Avatar name={initialUser.initials} />
-            {currentRole === "admin" && <span className="admin-label">ADMIN</span>}
-            <span className="profile-chevron">⌄</span>
+            ☰
+
           </button>
-          <button className="icon-button mobile-menu-button" onClick={() => setMobileMenu(!mobileMenu)} aria-label="Toggle menu">☰</button>
         </div>
+
       </header>
 
       <div className={`workspace ${mobileMenu ? "menu-open" : ""}`}>
@@ -758,6 +845,37 @@ function App() {
           </section>
         </div>
       )}
+
+{showProfile && (
+  <div
+    className="modal-backdrop"
+    onMouseDown={(event) =>
+      event.target === event.currentTarget && setShowProfile(false)
+    }
+  >
+    <section className="modal glass-panel">
+      <div className="modal-heading">
+        <div>
+          <div className="eyebrow">YOUR RALLY SPACE</div>
+          <h2>Your Profile</h2>
+        </div>
+
+        <button
+          className="icon-button"
+          onClick={() => setShowProfile(false)}
+          aria-label="Close profile"
+        >
+          <Icon name="close" />
+        </button>
+      </div>
+
+      <Avatar name={initialUser.initials} />
+      <h3>{initialUser.name}</h3>
+      <p>@{initialUser.handle}</p>
+      <p className="muted-text">Role: {currentRole}</p>
+    </section>
+  </div>
+)}
 
       {notice && <div className="toast-message"><span className="toast-check">✓</span>{notice}</div>}
     </div>
