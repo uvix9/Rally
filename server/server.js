@@ -18,6 +18,7 @@ const savedPostRoutes = require("./routes/savedPostRoutes");
 const communityRoutes = require("./routes/communityRoutes");
 const followRoutes = require("./routes/followRoutes");
 const messageRoutes = require("./routes/messageRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use("/api/saved-posts", savedPostRoutes);
 app.use("/api/communities", communityRoutes);
 app.use("/api/follows", followRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ================= HEALTH CHECK =================
 
