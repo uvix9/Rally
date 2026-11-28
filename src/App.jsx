@@ -1,5 +1,5 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import API_BASE_URL from "./api";
 
@@ -299,6 +299,9 @@ function App() {
   const [currentUser, setCurrentUser] = useState("");
   const [currentRole, setCurrentRole] = useState("user");
   const [authToken, setAuthToken] = useState("");
+  const [adminStats, setAdminStats] = useState(null);
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   const [posts, setPosts] = useState(initialPosts);
   const [communities, setCommunities] = useState(initialCommunities);
@@ -446,6 +449,70 @@ function App() {
     setCommentText("");
     showNotice("Comment added");
   }
+
+  async function fetchAdminData() {
+  setAdminLoading(true);
+
+  try {
+    const headers = {
+      Authorization: `Bearer ${authToken}`,
+    };
+
+    const [statsResponse, usersResponse] = await Promise.all([
+      fetch(`${API_BASE_URL}/admin/stats`, { headers }),
+      fetch(`${API_BASE_URL}/admin/users`, { headers }),
+    ]);
+
+    const statsData = await statsResponse.json();
+    const usersData = await usersResponse.json();
+
+    if (!statsResponse.ok || !usersResponse.ok) {
+      throw new Error("Failed to fetch admin data");
+    }
+
+    setAdminStats(statsData.stats);
+    setAdminUsers(usersData.users);
+  } catch (error) {
+    console.error("Admin dashboard error:", error);
+    showNotice("Could not load admin data");
+  } finally {
+    setAdminLoading(false);
+  }
+}
+
+  async function updateUserStatus(userId, status) {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/admin/users/${userId}/status`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ status }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to update user status");
+    }
+
+    await fetchAdminData();
+    showNotice(`User ${status} successfully`);
+  } catch (error) {
+    console.error("Update user status error:", error);
+    showNotice(error.message || "Could not update user");
+  }
+}
+
+  useEffect(() => {
+  if (activeNav === "Admin" && currentRole === "admin" && authToken) {
+    fetchAdminData();
+  }
+}, [activeNav, currentRole, authToken]);
 
   function selectNav(name) {
     setActiveNav(name);
@@ -600,6 +667,22 @@ function App() {
           </div>
 
           <div className="sidebar-section community-section">
+                      </div>
+
+          {currentRole === "admin" && (
+            <div className="sidebar-section">
+              <div className="section-label">ADMINISTRATION</div>
+              <button
+                className={`nav-item ${activeNav === "Admin" ? "active" : ""}`}
+                onClick={() => selectNav("Admin")}
+              >
+                <Icon name="shield" />
+                <span>Admin Dashboard</span>
+              </button>
+            </div>
+          )}
+
+          <div className="sidebar-section community-section">
             <div className="section-heading">
               <span className="section-label">YOUR COMMUNITIES</span>
               <button className="tiny-icon-button" onClick={() => selectNav("Explore")} aria-label="Explore communities"><Icon name="plus" /></button>
@@ -688,6 +771,115 @@ function App() {
             </section>
           )}
 
+                    {activeNav === "Admin" && currentRole === "admin" ? (
+            <section className="feed-section">
+              <div className="feed-heading">
+                <div>
+                  <div className="eyebrow">RALLY CONTROL CENTER</div>
+                  <h2>Admin Dashboard</h2>
+                  <p className="muted-text">
+                    Manage users and monitor your community.
+                  </p>
+                </div>
+              </div>
+
+              {adminLoading ? (
+  <div className="glass-panel" style={{ padding: "24px" }}>
+    Loading dashboard data...
+  </div>
+) : adminStats ? (
+  <div className="admin-stats-grid">
+    <div className="glass-panel admin-stat-card">
+      <span>Total Users</span>
+      <h2>{adminStats.total_users}</h2>
+    </div>
+
+    <div className="glass-panel admin-stat-card">
+      <span>Active Users</span>
+      <h2>{adminStats.active_users}</h2>
+    </div>
+
+    <div className="glass-panel admin-stat-card">
+      <span>Suspended Users</span>
+      <h2>{adminStats.suspended_users}</h2>
+    </div>
+
+    <div className="glass-panel admin-stat-card">
+      <span>Total Admins</span>
+      <h2>{adminStats.total_admins}</h2>
+    </div>
+  </div>
+) : (
+  <div className="glass-panel" style={{ padding: "24px" }}>
+    <h3>No dashboard data available</h3>
+    <button onClick={fetchAdminData}>Retry</button>
+  </div>
+)}
+
+
+<div className="admin-users-section">
+  <div className="feed-heading">
+    <div>
+      <h2>User Management</h2>
+      <p className="muted-text">View and manage Rally accounts.</p>
+    </div>
+    <span className="muted-text">{adminUsers.length} users</span>
+  </div>
+
+  <div className="glass-panel admin-table-wrapper">
+    <table className="admin-users-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {adminUsers.map((user) => (
+          <tr key={user.id}>
+            <td>
+              <strong>@{user.username}</strong>
+              <div className="muted-text">{user.display_name}</div>
+            </td>
+            <td>{user.email}</td>
+            <td>{user.role}</td>
+            <td>
+              <span className={`admin-status ${user.account_status}`}>
+                {user.account_status}
+              </span>
+            </td>
+            <td>
+              {user.username === currentUser ? (
+                <span className="muted-text">You</span>
+              ) : (
+                <button
+                  className="admin-action-button"
+                  onClick={() =>
+                    updateUserStatus(
+                      user.id,
+                      user.account_status === "active"
+                        ? "suspended"
+                        : "active"
+                    )
+                  }
+                >
+                  {user.account_status === "active" ? "Suspend" : "Activate"}
+                </button>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+            </section>
+          ) : (
+
           <section className="feed-section">
             <div className="feed-heading">
               <div>
@@ -772,6 +964,7 @@ function App() {
               )}
             </div>
           </section>
+          )}
         </main>
 
         <aside className="right-sidebar">

@@ -901,3 +901,113 @@ box-shadow: 0 4px 22px rgba(181, 111, 223, 0.22);
   cursor: pointer;
   margin-left: 5px;
 }
+/* Admin Dashboard Stats */
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.admin-stat-card {
+  padding: 24px;
+  border-radius: 18px;
+  min-width: 0;
+}
+
+.admin-stat-card span {
+  display: block;
+  font-size: 14px;
+  opacity: 0.75;
+  margin-bottom: 12px;
+}
+
+.admin-stat-card h2 {
+  font-size: 32px;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* Admin User Management */
+.admin-users-section {
+  margin-top: 32px;
+}
+
+.admin-table-wrapper {
+  margin-top: 18px;
+  padding: 8px;
+  overflow-x: auto;
+}
+
+.admin-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  min-width: 650px;
+}
+
+.admin-users-table th,
+.admin-users-table td {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
+  font-size: 14px;
+}
+
+.admin-users-table th {
+  opacity: 0.65;
+  font-weight: 600;
+}
+
+.admin-users-table td {
+  vertical-align: middle;
+}
+
+.admin-status {
+  display: inline-block;
+  padding: 6px 11px;
+  border-radius: 20px;
+  font-size: 12px;
+  text-transform: capitalize;
+  font-weight: 600;
+}
+
+.admin-status.active {
+  color: #16865b;
+  background: rgba(22, 180, 115, 0.12);
+}
+
+.admin-status.suspended {
+  color: #d04b4b;
+  background: rgba(220, 70, 70, 0.12);
+}
+
+.admin-action-button {
+  padding: 8px 14px;
+  border: 1px solid rgba(220, 70, 70, 0.35);
+  border-radius: 8px;
+  background: transparent;
+  color: #d04b4b;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-action-button:hover {
+  background: rgba(220, 70, 70, 0.1);
+}
+
+@media (max-width: 600px) {
+  .admin-users-table th,
+  .admin-users-table td {
+    padding: 12px;
+  }
+}
