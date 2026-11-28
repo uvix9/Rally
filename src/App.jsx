@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from "react";
 import "./App.css";
+import API_BASE_URL from "./api";
 
 const initialCommunities = [
   { id: "technology", name: "technology", members: "2.4m", icon: "⌘", color: "blue" },
@@ -108,7 +109,198 @@ function Avatar({ name = "User", size = "normal", color = "blue" }) {
   );
 }
 
+function AuthScreen({ onLogin }) {
+  const [mode, setMode] = useState("signup");
+  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (mode === "signup") {
+      if (username.trim().length < 3) {
+        setError("Username must be at least 3 characters.");
+        return;
+      }
+
+      if (displayName.trim().length < 2) {
+        setError("Please enter your display name.");
+        return;
+      }
+
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters.");
+        return;
+      }
+    }
+
+    setLoading(true);
+
+    try {
+      const endpoint =
+        mode === "signup" ? "/auth/signup" : "/auth/login";
+
+      const body =
+        mode === "signup"
+          ? {
+              username: username.trim(),
+              displayName: displayName.trim(),
+              email: cleanEmail,
+              password,
+            }
+          : {
+              email: cleanEmail,
+              password,
+            };
+
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Something went wrong.");
+      }
+
+      if (mode === "signup") {
+        setMode("login");
+        setError("Account created successfully! Please log in.");
+        setPassword("");
+      } else {
+        onLogin(data.user, data.token);
+      }
+    } catch (err) {
+      setError(err.message || "Unable to connect to the server.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="auth-logo">rally<span>.</span></div>
+
+        <div className="auth-eyebrow">YOUR PEOPLE. YOUR PLANET.</div>
+
+        <h1>
+          {mode === "signup" ? "Find your people." : "Welcome back."}
+        </h1>
+
+        <p className="auth-description">
+          {mode === "signup"
+            ? "Create your space. Join the conversation."
+            : "Your communities are waiting for you."}
+        </p>
+
+        <div className="auth-tabs">
+          <button
+            className={mode === "login" ? "active" : ""}
+            onClick={() => {
+              setMode("login");
+              setError("");
+            }}
+            type="button"
+          >
+            Log in
+          </button>
+
+          <button
+            className={mode === "signup" ? "active" : ""}
+            onClick={() => {
+              setMode("signup");
+              setError("");
+            }}
+            type="button"
+          >
+            Sign up
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          {mode === "signup" && (
+            <>
+              <label>Display Name</label>
+              <input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                placeholder="Enter your name"
+                required
+              />
+
+              <label>Username</label>
+              <input
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="Choose a username"
+                required
+              />
+            </>
+          )}
+
+          <label>Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="Enter your email"
+            required
+          />
+
+          <label>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Enter your password"
+            required
+          />
+
+          {error && <div className="auth-error">{error}</div>}
+
+          <button className="auth-submit" type="submit" disabled={loading}>
+            {loading
+              ? "Please wait..."
+              : mode === "signup"
+                ? "Create account"
+                : "Log in"}
+          </button>
+        </form>
+
+        <p className="auth-switch">
+          {mode === "signup"
+            ? "Already have an account?"
+            : "New to Rally?"}
+          <button
+            type="button"
+            onClick={() => {
+              setMode(mode === "signup" ? "login" : "signup");
+              setError("");
+            }}
+          >
+            {mode === "signup" ? "Log in" : "Sign up"}
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
 function App() {
+  const [currentUser, setCurrentUser] = useState("");
+  const [currentRole, setCurrentRole] = useState("user");
+  const [authToken, setAuthToken] = useState("");
   const [posts, setPosts] = useState(initialPosts);
   const [communities, setCommunities] = useState(initialCommunities);
   const [joined, setJoined] = useState(["technology", "programming"]);
@@ -124,6 +316,8 @@ function App() {
   const [commentText, setCommentText] = useState("");
   const [notice, setNotice] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const currentPost = posts.find((post) => post.id === showComments);
 
@@ -253,6 +447,19 @@ function App() {
     setMobileMenu(false);
   }
 
+  // Show authentication before rendering the existing Rally homepage.
+  if (!currentUser) {
+  return (
+    <AuthScreen
+      onLogin={(user, token) => {
+        setCurrentUser(user.username);
+        setCurrentRole(user.role || "user");
+        setAuthToken(token);
+      }}
+    />
+  );
+}
+
   return (
     <div className="app-shell">
       <div className="ambient ambient-one" />
@@ -283,20 +490,86 @@ function App() {
         </div>
 
         <div className="top-actions">
-          <button className="icon-button notification-button" aria-label="Notifications" onClick={() => showNotice("You're all caught up!")}>
+          <button
+            className="icon-button notification-button"
+            aria-label="Notifications"
+            onClick={() => showNotice("You're all caught up!")}
+          >
             <Icon name="bell" />
             <span className="notification-dot" />
           </button>
-          <button className="create-button" onClick={() => setShowComposer(true)}>
+
+          <button
+            className="create-button"
+            onClick={() => setShowComposer(true)}
+          >
             <Icon name="plus" />
             <span>Create post</span>
           </button>
-          <button className="profile-button" onClick={() => showNotice(`Signed in as @${initialUser.handle}`)}>
-            <Avatar name={initialUser.initials} />
-            <span className="profile-chevron">⌄</span>
+
+          <div className="profile-menu-wrapper">
+            <button
+              className="profile-button"
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              aria-label="Open profile menu"
+            >
+              <Avatar name={initialUser.initials} />
+              {currentRole === "admin" && (
+                <span className="admin-label">ADMIN</span>
+              )}
+              <span className="profile-chevron">⌄</span>
+            </button>
+
+            {showProfileMenu && (
+              <div className="profile-dropdown">
+                <button
+                  onClick={() => {
+                    setShowProfile(true);
+                    setShowProfileMenu(false);
+                  }}
+                >
+                  <Icon name="message" />
+                  View Profile
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      await fetch(`${API_BASE_URL}/auth/logout`, {
+                        method: "POST",
+                        headers: {
+                          Authorization: `Bearer ${authToken}`,
+                        },
+                      });
+                    } catch (error) {
+                      console.error("Logout error:", error);
+                    } finally {
+                      setCurrentUser("");
+                      setCurrentRole("user");
+                      setAuthToken("");
+                      setActiveNav("Home");
+                      setActiveCommunity("");
+                      setSearch("");
+                      setShowProfileMenu(false);
+                    }
+                  }}
+                >
+                  <Icon name="close" />
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            className="icon-button mobile-menu-button"
+            onClick={() => setMobileMenu(!mobileMenu)}
+            aria-label="Toggle menu"
+          >
+            ☰
           </button>
-          <button className="icon-button mobile-menu-button" onClick={() => setMobileMenu(!mobileMenu)} aria-label="Toggle menu">☰</button>
         </div>
+
       </header>
 
       <div className={`workspace ${mobileMenu ? "menu-open" : ""}`}>
@@ -564,6 +837,37 @@ function App() {
           </section>
         </div>
       )}
+
+{showProfile && (
+  <div
+    className="modal-backdrop"
+    onMouseDown={(event) =>
+      event.target === event.currentTarget && setShowProfile(false)
+    }
+  >
+    <section className="modal glass-panel">
+      <div className="modal-heading">
+        <div>
+          <div className="eyebrow">YOUR RALLY SPACE</div>
+          <h2>Your Profile</h2>
+        </div>
+
+        <button
+          className="icon-button"
+          onClick={() => setShowProfile(false)}
+          aria-label="Close profile"
+        >
+          <Icon name="close" />
+        </button>
+      </div>
+
+      <Avatar name={initialUser.initials} />
+      <h3>{initialUser.name}</h3>
+      <p>@{initialUser.handle}</p>
+      <p className="muted-text">Role: {currentRole}</p>
+    </section>
+  </div>
+)}
 
       {notice && <div className="toast-message"><span className="toast-check">✓</span>{notice}</div>}
     </div>
