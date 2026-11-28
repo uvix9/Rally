@@ -2,6 +2,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
+const Token = require("../models/tokenModel");
 
 // ================= SIGNUP =================
 
@@ -16,7 +17,10 @@ const signup = async (req, res) => {
       });
     }
 
-    if (password.length < 8) {
+    if (
+      typeof password !== "string" ||
+      password.length < 8
+    ) {
       return res.status(400).json({
         success: false,
         message: "Password must be at least 8 characters",
@@ -57,7 +61,7 @@ const signup = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Signup error:", error.message);
+    console.error("Signup error:", error);
 
     return res.status(500).json({
       success: false,
@@ -89,6 +93,20 @@ const login = async (req, res) => {
       });
     }
 
+    if (user.account_status !== "active") {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is suspended",
+      });
+    }
+
+    if (!user.password_hash) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(
       password,
       user.password_hash
@@ -101,7 +119,6 @@ const login = async (req, res) => {
       });
     }
 
-    // Generate JWT
     const token = jwt.sign(
       {
         id: user.id,
@@ -128,7 +145,7 @@ const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Login error:", error.message);
+    console.error("Login error:", error);
 
     return res.status(500).json({
       success: false,
@@ -163,7 +180,7 @@ const getMe = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Get profile error:", error.message);
+    console.error("Get profile error:", error);
 
     return res.status(500).json({
       success: false,
@@ -173,18 +190,23 @@ const getMe = async (req, res) => {
 };
 
 
+// ================= LOGOUT =================
+
 const logout = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader.split(" ")[1];
 
-    // Decode token to get its expiry time
     const decoded = jwt.decode(token);
 
-    const expiresAt = new Date(decoded.exp * 1000);
+    if (!decoded || !decoded.exp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid token",
+      });
+    }
 
-    // Revoke token in database
-    const Token = require("../models/tokenModel");
+    const expiresAt = new Date(decoded.exp * 1000);
 
     await Token.revokeToken(token, expiresAt);
 
@@ -194,7 +216,7 @@ const logout = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Logout error:", error.message);
+    console.error("Logout error:", error);
 
     return res.status(500).json({
       success: false,
@@ -204,5 +226,12 @@ const logout = async (req, res) => {
 };
 
 
-module.exports = { signup, login, getMe, logout };
+module.exports = {
+  signup,
+  login,
+  getMe,
+  logout,
+};
+
+
 

@@ -58,12 +58,6 @@ const initialPosts = [
   },
 ];
 
-const initialUser = {
-  name: "Alex Morgan",
-  handle: "alexbuilds",
-  initials: "AM",
-};
-
 function Icon({ name }) {
   const paths = {
     home: <><path d="m3 10 9-7 9 7" /><path d="M5 9v11h14V9M9 20v-7h6v7" /></>,
@@ -108,7 +102,6 @@ function Avatar({ name = "User", size = "normal", color = "blue" }) {
     </div>
   );
 }
-
 function AuthScreen({ onLogin }) {
   const [mode, setMode] = useState("signup");
   const [username, setUsername] = useState("");
@@ -230,6 +223,7 @@ function AuthScreen({ onLogin }) {
         </div>
 
         <form onSubmit={handleSubmit}>
+        
           {mode === "signup" && (
             <>
               <label>Display Name</label>
@@ -256,6 +250,7 @@ function AuthScreen({ onLogin }) {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="Enter your email"
+            
             required
           />
 
@@ -270,12 +265,14 @@ function AuthScreen({ onLogin }) {
 
           {error && <div className="auth-error">{error}</div>}
 
+
           <button className="auth-submit" type="submit" disabled={loading}>
             {loading
               ? "Please wait..."
               : mode === "signup"
                 ? "Create account"
                 : "Log in"}
+
           </button>
         </form>
 
@@ -297,10 +294,12 @@ function AuthScreen({ onLogin }) {
     </div>
   );
 }
+
 function App() {
   const [currentUser, setCurrentUser] = useState("");
   const [currentRole, setCurrentRole] = useState("user");
   const [authToken, setAuthToken] = useState("");
+
   const [posts, setPosts] = useState(initialPosts);
   const [communities, setCommunities] = useState(initialCommunities);
   const [joined, setJoined] = useState(["technology", "programming"]);
@@ -318,6 +317,13 @@ function App() {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+
+  // The logged-in user's details are used throughout the existing homepage.
+  const initialUser = {
+    name: currentUser,
+    handle: currentUser,
+    initials: currentUser.slice(0, 2).toUpperCase(),
+  };
 
   const currentPost = posts.find((post) => post.id === showComments);
 
@@ -449,6 +455,7 @@ function App() {
 
   // Show authentication before rendering the existing Rally homepage.
   if (!currentUser) {
+  
   return (
     <AuthScreen
       onLogin={(user, token) => {
@@ -567,6 +574,7 @@ function App() {
             aria-label="Toggle menu"
           >
             ☰
+
           </button>
         </div>
 
@@ -695,7 +703,7 @@ function App() {
 
             <button className="quick-compose glass-panel" onClick={() => setShowComposer(true)}>
               <Avatar name={initialUser.initials} />
-              <span>What's on your mind, Alex?</span>
+              <span>What's on your mind, {initialUser.name}?</span>
               <span className="compose-icon"><Icon name="plus" /></span>
             </button>
 

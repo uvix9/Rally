@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -8,22 +9,45 @@ require("dotenv").config({
 
 const pool = require("./config/db");
 
+// Import routes
+const authRoutes = require("./routes/authRoutes");
+const postRoutes = require("./routes/postRoutes");
+const commentRoutes = require("./routes/commentRoutes");
+const voteRoutes = require("./routes/voteRoutes");
+const savedPostRoutes = require("./routes/savedPostRoutes");
+const communityRoutes = require("./routes/communityRoutes");
+const followRoutes = require("./routes/followRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+
 const app = express();
 
-// Middlewares
+// ================= MIDDLEWARES =================
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "http://10.234.78.112:5173",
+    ],
     credentials: true,
   })
 );
 
 app.use(express.json());
-const authRoutes = require("./routes/authRoutes");
+
+// ================= API ROUTES =================
 
 app.use("/api/auth", authRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/comments", commentRoutes);
+app.use("/api/votes", voteRoutes);
+app.use("/api/saved-posts", savedPostRoutes);
+app.use("/api/communities", communityRoutes);
+app.use("/api/follows", followRoutes);
+app.use("/api/messages", messageRoutes);
 
-// Backend health check
+// ================= HEALTH CHECK =================
+
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     success: true,
@@ -31,7 +55,6 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Database health check
 app.get("/api/health/db", async (req, res) => {
   try {
     const result = await pool.query(
@@ -54,9 +77,12 @@ app.get("/api/health/db", async (req, res) => {
   }
 });
 
-// Start server
+// ================= START SERVER =================
+
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Rally server running on port ${PORT}`);
 });
+
+
